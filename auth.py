@@ -168,7 +168,17 @@ def login_page():
         
         st.markdown("---")
         
-        # Login form
+        # Fix alignment of form submission hint
+        st.markdown("""
+            <style>
+            [data-testid="InputInstructions"] {
+                text-align: right !important;
+                font-size: 0.8rem !important;
+                margin-top: -8px !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
         with st.form("login_form", clear_on_submit=False):
             username = st.text_input("👤 Username", placeholder="Enter your username")
             password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")

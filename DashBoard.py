@@ -546,7 +546,7 @@ st.sidebar.metric("Total Records", len(patient_df))
 
 # Calculate date range safely
 try:
-    date_range_days = (pd.to_datetime(patient_df['date']).max() - pd.to_datetime(patient_df['date']).min()).days
+    date_range_days = (pd.to_datetime(patient_df['date']).max() - pd.to_datetime(patient_df['date']).min()).days + 1
     st.sidebar.metric("Date Range", f"{date_range_days}d")
 except:
     st.sidebar.metric("Date Range", "N/A")
