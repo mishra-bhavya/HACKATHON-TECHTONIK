@@ -733,7 +733,7 @@ with st.container():
             label="📈 Recent Progress", 
             value=f"{'Yes' if progress else 'No'}",
             delta=None,
-            help="Mood improvement in last 4 days vs previous 4 days."
+            help="Stress level reduction in last 5 days vs previous 5 days."
         )
 
     with col3:

@@ -116,10 +116,11 @@ def has_made_progress(df):
     if len(df) < 10:
         return False
 
-    recent = df.tail(5)["mood_score"].mean()
-    previous = df.iloc[-10:-5]["mood_score"].mean()
+    recent = df.tail(5)["stress_level"].mean()
+    previous = df.iloc[-10:-5]["stress_level"].mean()
 
-    return recent > previous
+    # Progress means stress is DECREASING (lower is better)
+    return recent < previous
 
 
 # ----------------------------------
