@@ -145,32 +145,43 @@ def summarize_changes(df):
 # ----------------------------------
 
 def generate_insight(risk_score, summary, sustained_flag):
-    reasons = []
+    # Separate critical vs concerning indicators
+    critical_reasons = []
+    concerning_reasons = []
 
+    # CRITICAL indicators (immediate risk)
     if summary["high_hr_today"]:
-        reasons.append("HR↑")
+        critical_reasons.append("HR↑")
     if summary["high_stress_today"]:
-        reasons.append("Stress↑")
-    if summary["missed_therapy"]:
-        reasons.append("Therapy Missed")
-    if summary["low_sleep"]:
-        reasons.append("Sleep↓")
-    if summary["low_activity"]:
-        reasons.append("Activity↓")
+        critical_reasons.append("Stress↑")
     if summary["low_mood"]:
-        reasons.append("Mood↓")
+        critical_reasons.append("Mood↓")
+    
+    # CONCERNING indicators (monitor closely)
+    if summary["missed_therapy"]:
+        concerning_reasons.append("Therapy Missed")
+    if summary["low_sleep"]:
+        concerning_reasons.append("Sleep↓")
+    if summary["low_activity"]:
+        concerning_reasons.append("Activity↓")
 
-    reason_text = ", ".join(reasons) if reasons else "No issues"
-
+    # Determine risk level based on actual clinical significance
     if sustained_flag:
         return "High Risk | 5-day behavioral decline"
-
-    if summary["high_hr_today"] or summary["high_stress_today"]:
+    
+    # High Risk: Critical physiological/psychological indicators present
+    if summary["high_hr_today"] or summary["high_stress_today"] or (summary["low_mood"] and risk_score < -0.5):
+        all_reasons = critical_reasons + concerning_reasons
+        reason_text = ", ".join(all_reasons) if all_reasons else "Multiple indicators"
         return f"High Risk | {reason_text}"
-
-    if risk_score < -0.2:
+    
+    # Medium Risk: Behavioral concerns OR moderately negative risk score
+    if risk_score < -0.2 or len(concerning_reasons) >= 2 or summary["low_mood"]:
+        all_reasons = critical_reasons + concerning_reasons
+        reason_text = ", ".join(all_reasons) if all_reasons else "Behavioral patterns"
         return f"Medium Risk | {reason_text}"
-
+    
+    # Stable: No significant concerns
     return "Stable"
 
 

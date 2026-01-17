@@ -615,28 +615,31 @@ mood_trend = calculate_trend_direction(patient_df["mood_score"])
 # Generate alerts for current patient
 patient_alerts = generate_all_alerts(patient_df, risk_score)
 
-# Count alerts by severity
+# Count alerts by severity  
 high_alert_count = len([a for a in patient_alerts if a["severity"] == "HIGH"])
 medium_alert_count = len([a for a in patient_alerts if a["severity"] == "MEDIUM"])
 
 # ============================================================
 # DETERMINE MASTER MONITORING LEVEL (SINGLE SOURCE OF TRUTH)
 # ============================================================
-if high_alert_count > 0:
+# The AI insight from AIModel.py is the authoritative risk determination
+# It already incorporates all behavioral patterns and multivariate analysis
+if "High Risk" in insight or "High risk" in insight:
     patient_monitoring_level = "CRITICAL"
-elif medium_alert_count > 0:
+elif "Medium Risk" in insight or "Medium risk" in insight:
     patient_monitoring_level = "MONITOR"
 else:
+    # If insight says "Stable" or anything else, it's ROUTINE
     patient_monitoring_level = "ROUTINE"
 
 # ============================================================
 # DERIVE CLINICAL STATUS LABEL FROM MONITORING LEVEL
 # ============================================================
 if patient_monitoring_level == "CRITICAL":
-    clinical_status_label = "Requires Immediate Clinical Attention"
+    clinical_status_label = "Critical"
     status_emoji = "🔴"
 elif patient_monitoring_level == "MONITOR":
-    clinical_status_label = "Stable – Under Observation"
+    clinical_status_label = "Monitor"
     status_emoji = "🟡"
 else:  # ROUTINE
     clinical_status_label = "Stable"
@@ -755,9 +758,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # AI Insight Alert Box with better styling
 with st.container():
-    if "High risk" in insight:
+    if "High Risk" in insight or "High risk" in insight:
         st.error(f"🚨 **ALERT**: {insight}")
-    elif "Medium risk" in insight:
+    elif "Medium Risk" in insight or "Medium risk" in insight:
         st.warning(f"⚠️ **CAUTION**: {insight}")
     else:
         st.success(f"✅ **STATUS**: {insight}")
@@ -775,6 +778,28 @@ if patient_monitoring_level == "CRITICAL":
     # State: CRITICAL
     banner_state = "IMMEDIATE CLINICAL ATTENTION REQUIRED"
     banner_explanation = "High-priority behavioral indicators detected. Patient requires prompt clinical assessment and potential care plan modification."
+    
+    # Build detailed reasons list from summary
+    critical_reasons = []
+    if summary["high_hr_today"]:
+        hr_value = patient_df.iloc[-1]["heart_rate"]
+        critical_reasons.append(f"**Elevated Heart Rate**: Current reading {hr_value:.0f} BPM (threshold: 100 BPM)")
+    if summary["high_stress_today"]:
+        stress_value = patient_df.iloc[-1]["stress_level"]
+        critical_reasons.append(f"**High Stress Level**: Current level {stress_value:.1f}/10 (threshold: 7/10)")
+    if summary["missed_therapy"]:
+        recent_therapy = patient_df.tail(3)["therapy_attended"].sum()
+        critical_reasons.append(f"**Therapy Attendance Concern**: Only {recent_therapy}/3 sessions attended in last 3 days")
+    if summary["low_mood"]:
+        recent_mood = patient_df.tail(3)["mood_score"].mean()
+        critical_reasons.append(f"**Declining Mood**: Average mood score {recent_mood:.1f}/5 over last 3 days (threshold: 2.5)")
+    if summary["low_sleep"]:
+        recent_sleep = patient_df.tail(3)["sleep_hours"].mean()
+        critical_reasons.append(f"**Poor Sleep Quality**: Average {recent_sleep:.1f} hours over last 3 days (threshold: 5.5 hours)")
+    if summary["low_activity"]:
+        recent_activity = patient_df.tail(3)["activity_level"].mean()
+        critical_reasons.append(f"**Low Activity Level**: Average {recent_activity:.0f} steps/day, below patient's 25th percentile")
+    
     st.error(f"""
 ### 🔴 {banner_state}
 
@@ -782,6 +807,13 @@ if patient_monitoring_level == "CRITICAL":
 
 **Active High Priority Alerts**: {high_alert_count} | **Active Medium Priority Alerts**: {medium_alert_count}
     """)
+    
+    # Show detailed breakdown
+    if critical_reasons:
+        st.markdown("#### 📋 Detailed Clinical Indicators")
+        for reason in critical_reasons:
+            st.markdown(f"- {reason}")
+        st.markdown("")
 elif patient_monitoring_level == "MONITOR":
     # State: MONITOR
     banner_state = "INCREASED MONITORING RECOMMENDED"
@@ -857,8 +889,118 @@ else:
         for idx, alert in enumerate(high_alerts, 1):
             st.error(f"**{idx}.** {alert['message']}")
             with st.expander("📋 View Details"):
-                st.markdown(f"**Interpretation:** {alert['explanation']}")
+                # Build detailed clinical interpretation
+                interpretation_parts = []
+                interpretation_parts.append(f"**Multivariate Risk Score:** {risk_score:.3f} (negative values indicate concern)")
+                interpretation_parts.append(f"\n**Clinical Status:** {insight}")
+                interpretation_parts.append("\n**Why This Patient is Critical:**")
+                
+                clinical_concerns = []
+                if summary["high_hr_today"]:
+                    hr_value = patient_df.iloc[-1]["heart_rate"]
+                    hr_baseline = patient_df["heart_rate"].mean()
+                    clinical_concerns.append(
+                        f"• **Cardiovascular Stress**: Current heart rate is {hr_value:.0f} BPM, which exceeds the clinical threshold of 100 BPM. "
+                        f"This is {hr_value - hr_baseline:.0f} BPM above the patient's baseline average of {hr_baseline:.0f} BPM, "
+                        f"indicating acute physiological stress or anxiety that requires immediate assessment."
+                    )
+                
+                if summary["high_stress_today"]:
+                    stress_value = patient_df.iloc[-1]["stress_level"]
+                    stress_baseline = patient_df["stress_level"].mean()
+                    clinical_concerns.append(
+                        f"• **Elevated Psychological Distress**: Patient's self-reported stress level is {stress_value:.1f}/10, "
+                        f"exceeding the high-risk threshold of 7/10. Baseline stress for this patient is {stress_baseline:.1f}/10. "
+                        f"This {((stress_value - stress_baseline) / stress_baseline * 100):.0f}% increase from baseline suggests "
+                        f"acute psychological distress requiring intervention."
+                    )
+                
+                if summary["low_mood"]:
+                    recent_mood = patient_df.tail(3)["mood_score"].mean()
+                    overall_mood = patient_df["mood_score"].mean()
+                    clinical_concerns.append(
+                        f"• **Depressive Symptomatology**: 3-day average mood score is {recent_mood:.1f}/5, below the clinical "
+                        f"concern threshold of 2.5/5. Patient's historical average is {overall_mood:.1f}/5. This sustained low mood "
+                        f"pattern over multiple days indicates worsening depressive symptoms that may affect treatment compliance "
+                        f"and recovery outcomes."
+                    )
+                
+                if summary["low_sleep"]:
+                    recent_sleep = patient_df.tail(3)["sleep_hours"].mean()
+                    overall_sleep = patient_df["sleep_hours"].mean()
+                    clinical_concerns.append(
+                        f"• **Sleep Deprivation**: Average sleep duration over the last 3 days is {recent_sleep:.1f} hours, "
+                        f"significantly below the clinical minimum of 5.5 hours. Patient's typical sleep duration is {overall_sleep:.1f} hours. "
+                        f"Chronic sleep deprivation is strongly correlated with mood deterioration, cognitive impairment, and increased "
+                        f"risk of self-harm in rehabilitation populations."
+                    )
+                
+                if summary["missed_therapy"]:
+                    recent_therapy = patient_df.tail(3)["therapy_attended"].sum()
+                    therapy_compliance = (patient_df["therapy_attended"].sum() / len(patient_df)) * 100
+                    clinical_concerns.append(
+                        f"• **Treatment Non-Compliance**: Patient attended only {recent_therapy}/3 therapy sessions in the last 3 days. "
+                        f"Historical compliance rate is {therapy_compliance:.0f}%. Sudden decrease in therapy attendance is a red flag "
+                        f"for disengagement, withdrawal, or deteriorating mental state. This pattern often precedes acute crisis events."
+                    )
+                
+                if summary["low_activity"]:
+                    recent_activity = patient_df.tail(3)["activity_level"].mean()
+                    q25 = patient_df["activity_level"].quantile(0.25)
+                    overall_activity = patient_df["activity_level"].mean()
+                    clinical_concerns.append(
+                        f"• **Behavioral Withdrawal**: Recent activity level is {recent_activity:.0f} steps/day, below the patient's "
+                        f"25th percentile baseline of {q25:.0f} steps/day (typical average: {overall_activity:.0f} steps/day). "
+                        f"Marked decrease in physical activity is associated with social withdrawal, anhedonia, and declining "
+                        f"motivation—all indicators of worsening mental health status."
+                    )
+                
+                if clinical_concerns:
+                    interpretation_parts.extend(clinical_concerns)
+                    interpretation_parts.append(
+                        f"\n**Integrated Clinical Assessment:** Multiple behavioral metrics have deteriorated simultaneously, "
+                        f"indicating a compound effect that significantly elevates clinical risk. The combination of "
+                        f"{len(clinical_concerns)} concurrent concerning indicators suggests the patient is experiencing an acute "
+                        f"decline in mental health functioning that requires immediate clinical evaluation and potential care plan "
+                        f"modification to prevent further deterioration."
+                    )
+                else:
+                    interpretation_parts.append(
+                        "Analysis indicates elevated risk based on multivariate pattern detection. While individual metrics may be "
+                        "within normal ranges, the combination and trajectory of behavioral patterns warrant comprehensive assessment."
+                    )
+                
+                st.markdown(f"**Interpretation:**\n\n" + "\n\n".join(interpretation_parts))
+                
+                st.markdown("---")
                 st.markdown("**Recommended Action:** Schedule clinical assessment within current shift. Consider consultation with attending physician if pattern persists.")
+                
+                # Add quick reference indicators
+                st.markdown("---")
+                st.markdown("**📊 Quick Reference - Current Values:**")
+                indicator_details = []
+                if summary["high_hr_today"]:
+                    hr_value = patient_df.iloc[-1]["heart_rate"]
+                    indicator_details.append(f"- ❤️ Heart Rate: **{hr_value:.0f} BPM** (Threshold: >100)")
+                if summary["high_stress_today"]:
+                    stress_value = patient_df.iloc[-1]["stress_level"]
+                    indicator_details.append(f"- 😰 Stress Level: **{stress_value:.1f}/10** (Threshold: >7)")
+                if summary["missed_therapy"]:
+                    recent_therapy = patient_df.tail(3)["therapy_attended"].sum()
+                    indicator_details.append(f"- 🎭 Therapy Attendance: **{recent_therapy}/3 sessions**")
+                if summary["low_mood"]:
+                    recent_mood = patient_df.tail(3)["mood_score"].mean()
+                    indicator_details.append(f"- 😔 Mood Score: **{recent_mood:.1f}/5** (Threshold: <2.5)")
+                if summary["low_sleep"]:
+                    recent_sleep = patient_df.tail(3)["sleep_hours"].mean()
+                    indicator_details.append(f"- 😴 Sleep: **{recent_sleep:.1f} hrs** (Threshold: <5.5)")
+                if summary["low_activity"]:
+                    recent_activity = patient_df.tail(3)["activity_level"].mean()
+                    indicator_details.append(f"- 🚶 Activity: **{recent_activity:.0f} steps/day**")
+                
+                for detail in indicator_details:
+                    st.markdown(detail)
+                    
         st.markdown("<br>", unsafe_allow_html=True)
     
     # MEDIUM PRIORITY ALERTS (Yellow - Concise bullet format)
