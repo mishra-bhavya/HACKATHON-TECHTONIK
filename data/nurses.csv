@@ -1,0 +1,4 @@
+nurse_id,name,username,hashed_password,role
+N001,Priya Sharma,priya.sharma,$2b$12$oNTzAlMnLrh4/f21/ust6Oajf02neLXH5IpOuUbyf/pRRoNpXv9E2,nurse
+N002,Rahul Verma,rahul.verma,$2b$12$.q8yedaQFTUjkPZ.JpxVwOWJTPkKWENJv/hp14aEW7UpR.zluWuzu,nurse
+N003,Ananya Reddy,ananya.reddy,$2b$12$3wgcqygHlPZeqj6QIi0F5.2WA2lEs4vuniBFnZBRCeqNGJWl2.e2y,nurse

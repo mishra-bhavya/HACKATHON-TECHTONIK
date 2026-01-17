@@ -10,6 +10,29 @@ from AIModel import (
     summarize_changes,
     generate_insight
 )
+from auth import (
+    initialize_session_state,
+    require_authentication,
+    get_current_nurse,
+    logout
+)
+
+# ============================================================
+# AUTHENTICATION & SECURITY
+# ============================================================
+# Initialize authentication session state
+# This must be called BEFORE any authentication checks
+initialize_session_state()
+
+# Require authentication before showing ANY patient data
+# This function will:
+# 1. Check if user is logged in
+# 2. If not, show login page and STOP execution (no patient data loaded)
+# 3. If yes, continue to dashboard
+require_authentication()
+
+# IMPORTANT: All code below this line is ONLY executed for authenticated users
+# Patient data is loaded ONLY after successful authentication
 
 # ============================================================
 # HELPER FUNCTIONS FOR PHASE 2 ENHANCEMENTS
@@ -466,9 +489,29 @@ def generate_all_alerts(patient_df, risk_score):
 
 st.set_page_config(page_title="CARE-AI Dashboard", layout="wide", page_icon="🏥")
 
-# Professional header with better spacing
-st.markdown("# 🏥 CARE-AI Nurse Dashboard")
-st.markdown("##### *AI-Assisted Mental Health Monitoring for Rehabilitation Centers*")
+# ============================================================
+# HEADER WITH NURSE INFO & LOGOUT
+# ============================================================
+col_header1, col_header2 = st.columns([3, 1])
+
+with col_header1:
+    st.markdown("# 🏥 CARE-AI Nurse Dashboard")
+    st.markdown("##### *AI-Assisted Mental Health Monitoring for Rehabilitation Centers*")
+
+with col_header2:
+    nurse_info = get_current_nurse()
+    st.markdown(f"""<div style='text-align: right; padding-top: 0.5rem;'>
+        <p style='margin: 0; color: #666; font-size: 0.85rem;'>Logged in as:</p>
+        <p style='margin: 0; font-weight: bold; font-size: 1rem;'>👤 {nurse_info['name']}</p>
+        <p style='margin: 0; font-size: 0.75rem; color: #888;'>({nurse_info['nurse_id']})</p>
+    </div>""", unsafe_allow_html=True)
+    if st.button("🚪 Logout", use_container_width=True):
+        logout()
+
+st.markdown("---")
+
+# Security notice
+st.info("🔒 **Secure System** | This system protects patient confidentiality and complies with healthcare privacy regulations. All access is monitored.")
 st.markdown("---")
 
 # Load data with error handling
