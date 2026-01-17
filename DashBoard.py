@@ -8,7 +8,8 @@ from AIModel import (
     detect_concern,
     has_made_progress,
     summarize_changes,
-    generate_insight
+    generate_insight,
+    sustained_decline
 )
 from auth import (
     initialize_session_state,
@@ -585,7 +586,8 @@ try:
     risk_score = detect_concern(model, patient_df)
     progress = has_made_progress(patient_df)
     summary = summarize_changes(patient_df)
-    insight = generate_insight(risk_score, progress, summary)
+    sustained_flag = sustained_decline(patient_df) if len(patient_df) >= 5 else False
+    insight = generate_insight(risk_score, summary, sustained_flag)
 except Exception as e:
     st.error(f"❌ AI Analysis failed: {str(e)}")
     st.stop()
