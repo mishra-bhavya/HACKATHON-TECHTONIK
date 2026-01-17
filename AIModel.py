@@ -65,7 +65,9 @@ def detect_concern(model, df):
         ]
     ]
 
-    base_score = np.mean(model.decision_function(features))
+    decision_scores = model.decision_function(features)
+    # Handle both single value and array cases
+    base_score = float(np.mean(decision_scores)) if hasattr(decision_scores, '__len__') else float(decision_scores)
     risk_score = base_score
 
     latest_hr = df.iloc[-1]["heart_rate"]
